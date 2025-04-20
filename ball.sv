@@ -1,4 +1,4 @@
-module Ball #(parameter x_coords_width = 10,
+module ball #(parameter x_coords_width = 10,
               parameter y_coords_width = 10)
 (
   input clk,
