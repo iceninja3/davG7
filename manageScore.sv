@@ -6,7 +6,7 @@ module manageScore #(parameter ball_x_coords_width, parameter x_coords_min, para
     output increaseScore
 );
 
-    // Max score 128
+    // Max score 99
     reg [6:0] score1 = 0;
     reg [6:0] score2 = 0;
 
