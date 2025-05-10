@@ -28,14 +28,14 @@ module ball #(parameter x_coords_width = 10,
       y_speed_sign <= ~y_speed_sign;
 
     if (x_speed_sign)
-      new_x <= old_x + 10;
+      new_x <= old_x + 1; // keep at one so it doesn't phase through paddle and walls during collision detection
     else
-      new_x <= old_x - 10;
+      new_x <= old_x - 1;
 
     if (y_speed_sign)
-      new_y <= old_y + 10;
+      new_y <= old_y + 1;
     else
-      new_y <= old_y - 10;
+      new_y <= old_y - 1;
 
   end
 endmodule
