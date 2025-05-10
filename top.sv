@@ -11,8 +11,8 @@ module top
     (
         input clk,
         input rst,
-        input player1,
-        input player2,
+        input [1:0] player1,
+        input [1:0] player2,
 
         output ball_x,
         output ball_y
@@ -26,18 +26,18 @@ module top
     reg wall_collision = 0;
     reg paddle_collision = 0;
 
-    paddle paddle1(clk, rst, player1, player1_x);
-    paddle paddle2(clk, rst, player2, player2_x);
+    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(10)) paddle1 (clk, rst, player1, player1_x);
+    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(10)) paddle2(clk, rst, player2, player2_x);
     ball ball1(clk, rst, paddle_collision, wall_collision, ball_x, ball_y);
     collisionDetection collisionDetector (BIT_WIDTH, BALL_RADIUS, PADDLE_RADIUS, MID_X, FLOOR_Y);
     manageScore scoreManager (BALL_X_COORDS_WIDTH, BALL_x_COORDS_MIN, BALL_X_COORDS_MAX);
 
-    always @(posedge clk) 
-    begin
-        ball_
+    // always @(posedge clk) 
+    // begin
+    //     ball_
 
         
-    end
+    // end
 
     
 

@@ -11,10 +11,8 @@ module ball #(parameter x_coords_width = 10,
   output logic [y_coords_width-1: 0] new_y
 );
 
-  reg x_speed_sign = 0;
-  reg y_speed_sign = 0;
-
-
+  reg x_speed_sign = 0; // Positive if 1, negative if zero
+  reg y_speed_sign = 0; // Positive if 1, negative if zero
 
   always @(posedge clk) begin
 
