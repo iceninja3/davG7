@@ -1,230 +1,186 @@
-// Testbench for the modified paddle module with 2-bit button input
+`timescale 1ns/1ns
+`define CLOCK_SPEED 50000000 // in Hz
+
 module paddle_tb;
 
-// Parameters for the testbench
-localparam YBIT_WIDTH = 8;          // Width for yPos, e.g., 8 for [8:0] (0-511)
-localparam DY_VAL = 10;             // Step size for paddle movement (magnitude)
-localparam TOP_BOUNDARY_VAL = 395;  // Example top boundary
-localparam BOTTOM_BOUNDARY_VAL = 50; // Example bottom boundary
-localparam CLK_PERIOD = 10;         // Clock period in ns
+    // Parameters from paddle module
+    localparam DY              = 1; // Movement step
+    localparam TOP_BOUNDARY    = 0;
+    localparam BOTTOM_BOUNDARY = 479; // Assuming screen height of 480
+    localparam YBIT_WIDTH      = 9;  // To represent up to 479, 9 bits (2^9 = 512) is not enough, needs 10 bits.
+                                     // The module output is [YBIT_WIDTH:0], so if YBIT_WIDTH = 9, it's 10 bits.
+                                     // If YBIT_WIDTH is meant to be the number of bits, then it should be 10.
+                                     // Let's assume YBIT_WIDTH = 9 means indices 9 down to 0 (10 bits total).
+                                     // Max value for 10 bits is 1023. Max value for (YBIT_WIDTH):0 is 2^(YBIT_WIDTH+1)-1.
 
-// Expected reset position from DUT (hardcoded in DUT as 240)
-localparam INITIAL_YPOS_EXPECTED = 240; 
+    // Testbench clock
+    localparam halfPeriod = ((1000000000 / `CLOCK_SPEED) / 2); // in ns 
+    localparam period = 2 * halfPeriod;                         // in ns 
 
-// Signals to connect to the DUT
-logic clk;
-logic rst_dut;                      // Renamed to avoid conflict
-logic [1:0] btn_dut;                // 2-bit button input for DUT
-logic xPos_dut;                     // 1-bit xPos input for DUT (unused in DUT's yPos logic)
-logic [YBIT_WIDTH:0] yPos_dut;      // Output from DUT
+    // Inputs
+    logic clk;
+    logic rst;
+    logic [1:0] btn;
+    logic [9:0] xPos_dummy; // xPos is an input to paddle module but not used for yPos logic 
 
-// Instantiate the Device Under Test (DUT)
-// IMPORTANT: Assumes DUT has syntax corrections:
-// - `always_ff @(posedge clk)` (not `ck`)
-// - `if(rst)` (not `reset`) inside the always_ff block
-paddle #(
-  .DY(DY_VAL), // DY is now the magnitude
-  .TOP_BOUNDARY(TOP_BOUNDARY_VAL),
-  .BOTTOM_BOUNDARY(BOTTOM_BOUNDARY_VAL),
-  .YBIT_WIDTH(YBIT_WIDTH)
-) dut_instance (
-  .clk(clk),
-  .rst(rst_dut), // Connects to DUT's 'rst' input
-  .btn(btn_dut),
-  .xPos(xPos_dut),
-  .yPos(yPos_dut)
-);
+    // Outputs
+    logic [YBIT_WIDTH:0] yPos;
 
-// Clock generation process
-always #(CLK_PERIOD/2) clk = ~clk;
+    // Instantiate the module under test (MUT)
+    paddle #(
+        .DY(DY),
+        .TOP_BOUNDARY(TOP_BOUNDARY),
+        .BOTTOM_BOUNDARY(BOTTOM_BOUNDARY),
+        .YBIT_WIDTH(YBIT_WIDTH)
+    ) paddle_inst (
+        .clk(clk),
+        .rst(rst),
+        .btn(btn),
+        .xPos(xPos_dummy), // Connect the dummy xPos
+        .yPos(yPos)
+    );
 
-// Task to apply stimulus and wait for a clock edge
-task apply_stimulus_and_tick(input logic [1:0] btn_val, input logic rst_val);
-  btn_dut = btn_val;
-  rst_dut = rst_val;
-  $display("[%0t ns] Applied: rst_dut=%b, btn_dut=%2b. Waiting for next clk edge...", $time, rst_dut, btn_dut);
-  #(CLK_PERIOD);
-  $display("[%0t ns] After clk: rst_dut=%b, btn_dut=%2b, yPos_dut=%3d", $time, rst_dut, btn_dut, yPos_dut);
-endtask
+    // Clock generation
+    always begin
+        clk = 0;
+        #halfPeriod;
+        clk = 1;
+        #halfPeriod;
+    end
 
-// Main test sequence
-initial begin
-  // Initialize signals
-  clk = 0;
-  rst_dut = 1; // Start with reset asserted
-  btn_dut = 2'b00; 
-  xPos_dut = 0; // Arbitrary value for unused xPos input
+    initial begin
+        $monitor("Time: %0t | rst: %b, btn: %2b, yPos: %d", $time, rst, btn, yPos);
 
-  $display("------------------------------------------------------------------");
-  $display("[%0t ns] Testbench Started.", $time);
-  $display("Parameters: DY_VAL=%0d, TOP_BOUNDARY=%0d, BOTTOM_BOUNDARY=%0d, YBIT_WIDTH=%0d",
-           DY_VAL, TOP_BOUNDARY_VAL, BOTTOM_BOUNDARY_VAL, YBIT_WIDTH);
-  $display("DUT yPos is expected to reset to %0d.", INITIAL_YPOS_EXPECTED);
-  $display("IMPORTANT DUT NOTE: Ensure 'if(reset)' in your DUT is changed to 'if(rst_dut)' or 'if(rst)' to match port name.");
-  $display("IMPORTANT DUT NOTE: For btn=2'b10 (2), DUT logic is 'yPos <= yPos - btn*DY', which means 'yPos - 2*DY'. Movement will be 2*DY_VAL.");
-  $display("------------------------------------------------------------------");
-  
-  // 1. Reset Sequence
-  $display("[%0t ns] Asserting reset.", $time);
-  apply_stimulus_and_tick(2'b00, 1); // btn=00 during reset
-  apply_stimulus_and_tick(2'b00, 1); // Hold reset
-  
-  $display("[%0t ns] De-asserting reset.", $time);
-  apply_stimulus_and_tick(2'b00, 0); // De-assert reset, btn=00
+        // Test case 1: Reset paddle
+        rst = 1;
+        btn = 2'b00;
+        xPos_dummy = 100; // Initialize dummy input
+        #period;
+        // yPos should be 240 
+        if (yPos !== 240) $display("Error: Reset failed, yPos is %d, expected 240", yPos);
 
-  if (yPos_dut !== INITIAL_YPOS_EXPECTED) begin
-    $error("[%0t ns] RESET FAILED: yPos_dut is %d, expected %d.", $time, yPos_dut, INITIAL_YPOS_EXPECTED);
-  end else begin
-    $info("[%0t ns] RESET PASSED: yPos_dut is %d.", $time, yPos_dut);
-  end
-  
-  // 2. Test No Button Press (btn = 2'b00)
-  $display("[%0t ns] Testing no button press (btn_dut=2'b00). yPos_dut should remain %d.", $time, yPos_dut);
-  logic [YBIT_WIDTH:0] yPos_before_nobtn = yPos_dut;
-  apply_stimulus_and_tick(2'b00, 0);
-  apply_stimulus_and_tick(2'b00, 0);
-  if (yPos_dut !== yPos_before_nobtn) begin
-    $error("[%0t ns] NO BUTTON PRESS (00) FAILED: yPos_dut changed to %d, expected %d.", $time, yPos_dut, yPos_before_nobtn);
-  end else begin
-    $info("[%0t ns] NO BUTTON PRESS (00) PASSED: yPos_dut remained %d.", $time, yPos_dut);
-  end
+        rst = 0;
+        #period;
 
-  // 3. Test Button '1' (btn = 2'b01) - Move UP by DY_VAL
-  $display("[%0t ns] Testing btn_dut=2'b01 (UP). Expect yPos + %0d.", $time, DY_VAL);
-  yPos_before_nobtn = yPos_dut;
-  apply_stimulus_and_tick(2'b01, 0); 
-  if (yPos_dut !== yPos_before_nobtn + DY_VAL) begin
-      $error("[%0t ns] BTN=01 (UP) FAILED: yPos_dut is %d, expected %d + %d = %d.", 
-             $time, yPos_dut, yPos_before_nobtn, DY_VAL, yPos_before_nobtn + DY_VAL);
-  end else begin
-      $info("[%0t ns] BTN=01 (UP) PASSED: yPos_dut is %d.", $time, yPos_dut);
-  end
-  apply_stimulus_and_tick(2'b00, 0); // Release button
+        // Test case 2: Move paddle up (btn == 2'b01)
+        // According to module: if (btn == 1) yPos <= yPos + btn*DY;
+        // This means yPos will increase by 1*DY.
+        btn = 2'b01; // PADDLE_MOVE_UP (intended logic, assuming btn=1 is up)
+        #period; // yPos should be 240 + 1 = 241
+        if (yPos !== 241) $display("Error: Move up (btn=1) failed, yPos is %d, expected 241", yPos);
+        #period; // yPos should be 241 + 1 = 242
+        if (yPos !== 242) $display("Error: Move up (btn=1) failed, yPos is %d, expected 242", yPos);
 
-  // 4. Test Button '2' (btn = 2'b10) - Move DOWN by 2*DY_VAL (due to DUT's btn*DY logic)
-  localparam MOVE_DOWN_STEP = 2 * DY_VAL;
-  $display("[%0t ns] Testing btn_dut=2'b10 (DOWN). Expect yPos - %0d (2*DY_VAL due to DUT logic 'yPos - btn*DY').", $time, MOVE_DOWN_STEP);
-  yPos_before_nobtn = yPos_dut;
-  apply_stimulus_and_tick(2'b10, 0); 
-  if (yPos_dut !== yPos_before_nobtn - MOVE_DOWN_STEP) begin
-      $error("[%0t ns] BTN=10 (DOWN) FAILED: yPos_dut is %d, expected %d - %d = %d.", 
-             $time, yPos_dut, yPos_before_nobtn, MOVE_DOWN_STEP, yPos_before_nobtn - MOVE_DOWN_STEP);
-  end else begin
-      $info("[%0t ns] BTN=10 (DOWN) PASSED: yPos_dut is %d.", $time, yPos_dut);
-  end
-  apply_stimulus_and_tick(2'b00, 0); // Release button
+        // Test case 3: Move paddle down (btn == 2'b10)
+        // According to module: else if (btn == 2) yPos <= yPos - btn*DY; 
+        // This means yPos will decrease by 2*DY. If DY=1, it decreases by 2.
+        btn = 2'b10; // PADDLE_MOVE_DOWN
+        #period; // yPos should be 242 - 2*1 = 240
+        if (yPos !== 240) $display("Error: Move down (btn=2) failed, yPos is %d, expected 240", yPos);
+        #period; // yPos should be 240 - 2*1 = 238
+        if (yPos !== 238) $display("Error: Move down (btn=2) failed, yPos is %d, expected 238", yPos);
 
-  // 5. Test Button '3' (btn = 2'b11) - No Move Expected
-  $display("[%0t ns] Testing btn_dut=2'b11 (INVALID). Expect no move. yPos_dut should remain %d.", $time, yPos_dut);
-  yPos_before_nobtn = yPos_dut;
-  apply_stimulus_and_tick(2'b11, 0);
-  if (yPos_dut !== yPos_before_nobtn) begin
-    $error("[%0t ns] BTN=11 (INVALID) FAILED: yPos_dut changed to %d, expected %d.", $time, yPos_dut, yPos_before_nobtn);
-  end else begin
-    $info("[%0t ns] BTN=11 (INVALID) PASSED: yPos_dut remained %d.", $time, yPos_dut);
-  end
-  apply_stimulus_and_tick(2'b00, 0); // Release button
+        // Test case 4: No button press (btn == 2'b00)
+        btn = 2'b00;
+        #period; // yPos should be 238 (no change)
+        if (yPos !== 238) $display("Error: No button press failed, yPos is %d, expected 238", yPos);
 
-  // 6. Move UP to TOP_BOUNDARY
-  $display("[%0t ns] Moving UP towards TOP_BOUNDARY (%d). Current yPos_dut: %d", $time, TOP_BOUNDARY_VAL, yPos_dut);
-  // Reset to a known position closer to boundary to speed up test
-  apply_stimulus_and_tick(2'b00, 1); // Assert reset
-  apply_stimulus_and_tick(2'b00, 0); // De-assert reset (yPos_dut is INITIAL_YPOS_EXPECTED)
-  
-  // Manually set yPos_dut to a value close to TOP_BOUNDARY for testing boundary conditions
-  // This is a testbench shortcut; in real hardware, it would move step-by-step.
-  // We will simulate step-by-step from a closer point.
-  yPos_dut = TOP_BOUNDARY_VAL - (2 * DY_VAL) - (DY_VAL/2) ; // e.g., 395 - 20 - 5 = 370
-  $display("[%0t ns] Testbench manually set yPos_dut to %d for boundary test.", $time, yPos_dut);
-  // Simulate the DUT having this value by not resetting and just proceeding
-  // Note: The DUT's internal yPos will be what it is. This TB yPos_dut is just for expectation setting.
-  // For a true test, we'd clock it up. Let's do that.
-  // Reset again to ensure DUT internal state is known.
-  apply_stimulus_and_tick(2'b00, 1); 
-  apply_stimulus_and_tick(2'b00, 0); // yPos_dut is INITIAL_YPOS_EXPECTED (240)
-
-  $display("[%0t ns] Moving UP from %d to TOP_BOUNDARY (%d) with btn=2'b01 (step %d)", $time, yPos_dut, TOP_BOUNDARY_VAL, DY_VAL);
-  for (int i = 0; i < 30; i++) begin // Limit iterations
-      if (yPos_dut >= TOP_BOUNDARY_VAL) break;
-      yPos_before_nobtn = yPos_dut;
-      apply_stimulus_and_tick(2'b01, 0); // Move UP
-      if (yPos_dut == yPos_before_nobtn + DY_VAL) begin
-          $info("[%0t ns] Moved UP to %d", $time, yPos_dut);
-      } else if (yPos_dut == TOP_BOUNDARY_VAL && yPos_before_nobtn < TOP_BOUNDARY_VAL) {
-           $info("[%0t ns] Moved UP and hit TOP_BOUNDARY %d exactly.", $time, yPos_dut);
-      } else if (yPos_dut > TOP_BOUNDARY_VAL && yPos_before_nobtn < TOP_BOUNDARY_VAL) {
-           $warning("[%0t ns] Moved UP and OVERSHOT TOP_BOUNDARY. yPos_dut=%d, Prev=%d, Boundary=%d", $time, yPos_dut, yPos_before_nobtn, TOP_BOUNDARY_VAL);
-      } else if (yPos_dut == yPos_before_nobtn && yPos_dut == TOP_BOUNDARY_VAL) {
-           $info("[%0t ns] At TOP_BOUNDARY (%d), did not move further up.", $time, yPos_dut);
-           break;
-      } else {
-          $error("[%0t ns] Unexpected UP movement: yPos_dut=%d, Prev=%d", $time, yPos_dut, yPos_before_nobtn);
-          break;
-      }
-  }
-  apply_stimulus_and_tick(2'b00, 0); // Release button
-
-  // 6.1 Test trying to move UP when AT TOP_BOUNDARY
-  if (yPos_dut == TOP_BOUNDARY_VAL) {
-      $display("[%0t ns] At TOP_BOUNDARY (%d). Trying to move UP (btn=2'b01). Expect no change.", $time, yPos_dut);
-      yPos_before_nobtn = yPos_dut;
-      apply_stimulus_and_tick(2'b01, 0);
-      if (yPos_dut !== yPos_before_nobtn) {
-          $error("[%0t ns] AT TOP_BOUNDARY, MOVE UP FAILED: yPos_dut changed to %d.", $time, yPos_dut);
-      } else {
-          $info("[%0t ns] AT TOP_BOUNDARY, MOVE UP PASSED: yPos_dut remained %d.", $time, yPos_dut);
-      }
-      apply_stimulus_and_tick(2'b00, 0);
-  } else {
-      $warning("[%0t ns] Did not reach TOP_BOUNDARY exactly to test upward boundary lock. yPos_dut is %d", $time, yPos_dut);
-  }
+        // Test case 5: Button combination 2'b11 (undefined in current logic, should default to no change)
+        btn = 2'b11;
+        #period; // yPos should be 238 (no change)
+        if (yPos !== 238) $display("Error: btn=3 failed, yPos is %d, expected 238", yPos);
 
 
-  // 7. Move DOWN to BOTTOM_BOUNDARY
-  $display("[%0t ns] Moving DOWN towards BOTTOM_BOUNDARY (%d). Current yPos_dut: %d", $time, BOTTOM_BOUNDARY_VAL, yPos_dut);
-  // Reset to a known position closer to boundary to speed up test
-  apply_stimulus_and_tick(2'b00, 1); // Assert reset
-  apply_stimulus_and_tick(2'b00, 0); // De-assert reset (yPos_dut is INITIAL_YPOS_EXPECTED)
+        // Test case 6: Reaching TOP_BOUNDARY
+        // Set yPos close to TOP_BOUNDARY
+        // Manually set yPos for testing - this requires internal access or a different test approach.
+        // For a black-box testbench, we need to drive it there.
+        // Current yPos = 238. TOP_BOUNDARY = 0.
+        // To reach 0 using btn = 2 (moves by -2*DY = -2 per clock): (238 - 0) / 2 = 119 clocks.
+        // This is too long. Let's reset and move from a closer position if possible,
+        // or test with a yPos initialized closer via a non-synthesizable force if this were a more complex TB.
+        // For now, let's assume we can test it by moving.
+        // Let's set yPos to a value close to top boundary manually for test illustration.
+        // This is not directly possible without forcing or specific test modes in the DUT.
+        // We will simulate moving it to the boundary.
+        // Reset to 240.
+        rst = 1;
+        #period;
+        rst = 0;
+        #period; // yPos = 240
 
-  $display("[%0t ns] Moving DOWN from %d to BOTTOM_BOUNDARY (%d) with btn=2'b10 (step -%d)", $time, yPos_dut, BOTTOM_BOUNDARY_VAL, MOVE_DOWN_STEP);
-  for (int i = 0; i < 30; i++) begin // Limit iterations
-      if (yPos_dut <= BOTTOM_BOUNDARY_VAL) break;
-      yPos_before_nobtn = yPos_dut;
-      apply_stimulus_and_tick(2'b10, 0); // Move DOWN
-      if (yPos_dut == yPos_before_nobtn - MOVE_DOWN_STEP) begin
-          $info("[%0t ns] Moved DOWN to %d", $time, yPos_dut);
-      } else if (yPos_dut == BOTTOM_BOUNDARY_VAL && yPos_before_nobtn > BOTTOM_BOUNDARY_VAL) {
-           $info("[%0t ns] Moved DOWN and hit BOTTOM_BOUNDARY %d exactly.", $time, yPos_dut);
-      } else if (yPos_dut < BOTTOM_BOUNDARY_VAL && yPos_before_nobtn > BOTTOM_BOUNDARY_VAL) {
-           $warning("[%0t ns] Moved DOWN and OVERSHOT BOTTOM_BOUNDARY. yPos_dut=%d, Prev=%d, Boundary=%d", $time, yPos_dut, yPos_before_nobtn, BOTTOM_BOUNDARY_VAL);
-      } else if (yPos_dut == yPos_before_nobtn && yPos_dut == BOTTOM_BOUNDARY_VAL) {
-           $info("[%0t ns] At BOTTOM_BOUNDARY (%d), did not move further down.", $time, yPos_dut);
-           break;
-      } else {
-          $error("[%0t ns] Unexpected DOWN movement: yPos_dut=%d, Prev=%d", $time, yPos_dut, yPos_before_nobtn);
-          break;
-      }
-  }
-  apply_stimulus_and_tick(2'b00, 0); // Release button
+        // Move paddle to TOP_BOUNDARY
+        // Target: yPos = TOP_BOUNDARY (0)
+        // Using btn = 2'b10 (move by -2*DY = -2)
+        // We need to set yPos to TOP_BOUNDARY + 1 or TOP_BOUNDARY + 2 to test the boundary logic properly.
+        // Let's set yPos to 1. We can't directly set yPos in this testbench style.
+        // We will move it repeatedly. This will take many cycles.
+        // Instead, let's assume paddle module is modified for easier testing or use a smaller range.
+        // For now, we'll test with current yPos.
+        // To test TOP_BOUNDARY, yPos must be TOP_BOUNDARY.
+        // If yPos is currently DY (e.g., 1), and btn == 2'b10 (move down by 2*DY), it will try to go to 1 - 2 = -1.
+        // If yPos is TOP_BOUNDARY (0) and btn == 2'b10, it should stay at TOP_BOUNDARY. 
+        // Let's assume yPos is somehow set to TOP_BOUNDARY (0) for this test point.
+        // This requires an understanding that we'd need many cycles to get there.
+        // The test here will assume we are at the boundary.
+        // $display("Manually setting yPos for boundary test (conceptual for TB)");
+        // paddle_inst.yPos <= TOP_BOUNDARY; // This is a force, not standard synthesisable TB style.
+        // For a pure black-box TB, we'd have to step until it reaches the boundary.
+        
+        // Simulate moving to TOP_BOUNDARY + 1 then try to move down.
+        // Let current yPos be 238. Goal is TOP_BOUNDARY = 0.
+        // Using btn = 2 (yPos -= 2*DY):
+        // yPos = 238.
+        btn = 2'b10; // down
+        for (int i = 0; i < 118; i++) begin // 238 -> 238 - 2*118 = 238 - 236 = 2
+            #period;
+        end
+        // Now yPos should be 2.
+        if (yPos !== 2) $display("Error: Setup for top boundary test, yPos is %d, expected 2", yPos);
+        #period; // yPos should be 0 (2 - 2*1)
+        if (yPos !== TOP_BOUNDARY) $display("Error: Reaching top boundary failed, yPos is %d, expected %d", yPos, TOP_BOUNDARY);
 
-  // 7.1 Test trying to move DOWN when AT BOTTOM_BOUNDARY
-  if (yPos_dut == BOTTOM_BOUNDARY_VAL) {
-      $display("[%0t ns] At BOTTOM_BOUNDARY (%d). Trying to move DOWN (btn=2'b10). Expect no change.", $time, yPos_dut);
-      yPos_before_nobtn = yPos_dut;
-      apply_stimulus_and_tick(2'b10, 0);
-      if (yPos_dut !== yPos_before_nobtn) {
-          $error("[%0t ns] AT BOTTOM_BOUNDARY, MOVE DOWN FAILED: yPos_dut changed to %d.", $time, yPos_dut);
-      } else {
-          $info("[%0t ns] AT BOTTOM_BOUNDARY, MOVE DOWN PASSED: yPos_dut remained %d.", $time, yPos_dut);
-      }
-      apply_stimulus_and_tick(2'b00, 0);
-  } else {
-      $warning("[%0t ns] Did not reach BOTTOM_BOUNDARY exactly to test downward boundary lock. yPos_dut is %d", $time, yPos_dut);
-  }
+        // Try to move further down (should stay at TOP_BOUNDARY)
+        #period; // yPos should remain 0 
+        if (yPos !== TOP_BOUNDARY) $display("Error: Top boundary lock failed, yPos is %d, expected %d", yPos, TOP_BOUNDARY);
 
-  $display("------------------------------------------------------------------");
-  $display("[%0t ns] Test sequence finished.", $time);
-  $finish;
-end
+        // Try to move up from TOP_BOUNDARY
+        btn = 2'b01; // up (yPos += DY)
+        #period; // yPos should be 0 + 1 = 1
+        if (yPos !== TOP_BOUNDARY + DY) $display("Error: Move up from top boundary failed, yPos is %d, expected %d", yPos, TOP_BOUNDARY + DY);
+
+
+        // Test case 7: Reaching BOTTOM_BOUNDARY
+        // Reset to 240
+        rst = 1;
+        #period;
+        rst = 0;
+        #period; // yPos = 240
+
+        // Move paddle to BOTTOM_BOUNDARY - 1
+        // Target: yPos = BOTTOM_BOUNDARY (479)
+        // Using btn = 2'b01 (move by +DY = +1)
+        // We need to reach 478. (478 - 240) = 238 steps.
+        btn = 2'b01; // up
+        for (int i = 0; i < (BOTTOM_BOUNDARY - 1 - 240); i++) begin // Move to 478
+            #period;
+        end
+        // Now yPos should be BOTTOM_BOUNDARY - 1 = 478
+        if (yPos !== BOTTOM_BOUNDARY - DY) $display("Error: Setup for bottom boundary, yPos is %d, expected %d", yPos, BOTTOM_BOUNDARY - DY);
+        
+        #period; // yPos should be 478 + 1 = 479 (BOTTOM_BOUNDARY)
+        if (yPos !== BOTTOM_BOUNDARY) $display("Error: Reaching bottom boundary failed, yPos is %d, expected %d", yPos, BOTTOM_BOUNDARY);
+
+        // Try to move further up (should stay at BOTTOM_BOUNDARY)
+        #period; // yPos should remain 479 
+        if (yPos !== BOTTOM_BOUNDARY) $display("Error: Bottom boundary lock failed, yPos is %d, expected %d", yPos, BOTTOM_BOUNDARY);
+        
+        // Try to move down from BOTTOM_BOUNDARY
+        btn = 2'b10; // down (yPos -= 2*DY)
+        #period; // yPos should be 479 - 2 = 477
+        if (yPos !== BOTTOM_BOUNDARY - 2*DY) $display("Error: Move down from bottom boundary failed, yPos is %d, expected %d", yPos, BOTTOM_BOUNDARY - 2*DY);
+
+        $stop;
+    end
 
 endmodule
