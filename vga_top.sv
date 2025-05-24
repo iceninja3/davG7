@@ -19,7 +19,7 @@ module vga_top
     logic[7:0] color_8bit;
     logic[11:0] color_12bit;
     logic[11:0] colorOut;
-	 logic locked;
+	logic locked;
 
     always @(posedge clk)
     begin

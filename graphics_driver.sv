@@ -137,7 +137,6 @@ function integer max(input integer a, input integer b);
             9: // (11, 1), (12, 1), (13, 1), (11, 2), (13, 2), (11, 3), (12, 3), (13, 3), (13, 4), (13, 5)
         case (score-(score%10)) // ten's digit
             1: 
-                
             2:
             3:
             4: 
