@@ -1,39 +1,62 @@
-module paddle #(parameter DY, TOP_BOUNDARY, BOTTOM_BOUNDARY, YBIT_WIDTH) 
+module paddle #(parameter BIT_WIDTH, MAX_X, MAX_Y, PADDLE_SPEED, PADDLE_LENGTH, PADDLE_WIDTH, EDGE_OFFSET)
 (
-    //TODO: need an input for initial position of the paddle at start of game (left or right) instead of hardcoding at 240
-input logic clk, 
-input logic rst, 
-input logic[1:0] btn,
-input logic [YBIT_WIDTH:0] xPos,
-// btn is associated with a specific user and is assigned in top module
+    input logic rst,
+    input logic clk,
+    input logic pause,
+    input logic side,
+    input logic[1:0] dy,
 
-output logic [YBIT_WIDTH:0] yPos
-//output [10:0] xPos
+    output logic[(BIT_WIDTH-1):0] paddle_x,
+    output logic[(BIT_WIDTH-1):0] paddle_y
 );
 
+logic[(BIT_WIDTH-1):0] prevX;
+logic[(BIT_WIDTH-1):0] prevY;
 
-always_ff @(posedge clk) begin
-
-    if(rst) begin
-        yPos <= 240;
-        //reset paddle to center of some screen. hmmm how to do this for left and right paddle though?
+always @(posedge clk)
+begin
+    if (rst)
+    begin
+        if (side == 0)
+        begin
+            paddle_x = MAX_X - PADDLE_WIDTH - 1;
+            paddle_y = MAX_Y / 2;
+        end
+        else
+        begin
+            paddle_x = PADDLE_WIDTH + 1;
+            paddle_y = MAX_Y / 2;
+        end
     end
-    else if (yPos == TOP_BOUNDARY || yPos == BOTTOM_BOUNDARY) begin
-        yPos <= yPos;
+    else if (dy[0]) // moving up
+    begin
+        if ((prevY + PADDLE_LENGTH + PADDLE_SPEED) > MAX_Y)
+        begin
+            paddle_y = prevY;
+        end
+        else
+        begin
+            paddle_y = prevY + PADDLE_SPEED;
+        end
+        paddle_x = prevX;
     end
-    else if (btn == 1) begin
-        yPos <= yPos + DY;
+    else if (dy[1]) // moving down
+    begin
+        if ((prevY - PADDLE_LENGTH - PADDLE_SPEED) < EDGE_OFFSET)
+        begin
+            paddle_y = prevY;
+        end
+        else
+        begin
+            paddle_y = prevY - PADDLE_SPEED;
+        end
+        paddle_x = prevX;
     end
-    else if (btn == 2) begin
-        yPos <= yPos - DY;
+    else
+    begin
+        paddle_x = prevX;
+        paddle_y = prevY;
     end
-
 end
 
-// make sure paddle doesn't go off of screen with boundary checking
-// make sure 
-
-
 endmodule
-
-// in top module instantiate this module two times for two paddles

@@ -1,71 +1,173 @@
-`define BIT_WIDTH 10
-`define BALL_RADIUS 4
-`define PADDLE_RADIUS 8
-`define MID_X 40
-`define FLOOR_Y 80
-`define BALL_X_COORDS_WIDTH 10
-`define BALL_X_COORDS_MIN 10
-`define BALL_X_COORDS_MAX 10
-
-`define MIN_X 0
-`define MAX_X 639
-`define MIN_Y 0
-`define MAX_Y 479
-// Screen resolution is 640x480
-
 module top
-    (
-        input logic clk,
-        input logic rst,
-        input logic [1:0] player1,
-        input logic [1:0] player2,
+(
+    input logic clk,
+    input logic rst,
+    input logic pause,
+    input logic switchPlayer,
+    input logic upButton,
+    input logic downButton,
 
-        output logic [`BIT_WIDTH:0] ball_x,
-        output logic [`BIT_WIDTH:0] ball_y
-    );
+    output logic[3:0] redOut,
+    output logic[3:0] greenOut,
+    output logic[3:0] blueOut,
+    output logic hSync,
+    output logic vSync
+);
 
-    //reg [BIT_WIDTH:0] ball_x = 0;
-    //reg [BIT_WIDTH:0] ball_y = 0;
-    localparam p1x_initial= 50;
-	 logic [`BIT_WIDTH:0] p1x;
-    localparam p2x_initial = 590;
-	 logic [`BIT_WIDTH:0] p2x;
-    reg [`BIT_WIDTH:0] p1y_initial = 50;
-	 logic [`BIT_WIDTH:0] p1y;
-	 logic [`BIT_WIDTH:0] p1y_buffer;
-    reg [`BIT_WIDTH:0] p2y_initial = 50;
-	 logic [`BIT_WIDTH:0] p2y;
-	 logic [`BIT_WIDTH:0] p2y_buffer;
+localparam BIT_WIDTH = 10;
+localparam MAX_X = 31;
+localparam MAX_Y = 23;
+localparam BALL_SPEED_X = 0;
+localparam BALL_SPEED_Y = 0;
+localparam PADDLE_SPEED = 0;
+localparam BALL_RADIUS = 1;
+localparam PADDLE_WIDTH = 1;
+localparam PADDLE_LENGTH = 3;
+localparam EDGE_OFFSET = 3;
 
+logic sysRst;
+logic up1;
+logic up2;
+logic down1;
+logic down2;
+logic[1:0] touchingPaddle;
+logic[(BIT_WIDTH-1):0] ball_x;
+logic[(BIT_WIDTH-1):0] ball_y;
+logic[(BIT_WIDTH-1):0] player1_x;
+logic[(BIT_WIDTH-1):0] player1_y;
+logic[(BIT_WIDTH-1):0] player2_x;
+logic[(BIT_WIDTH-1):0] player2_y;
+logic[1:0] win;
 
-    reg wall_collision;
-    reg p1_paddle_collision;
-    reg p2_paddle_collision;
-    reg ball_touching_floor;
+assign sysRst = rst;
+always_comb
+begin
+    if (switchPlayer)
+    begin
+        up1 = ~upButton;
+        down1 = ~downButton;
+		  up2 = 0;
+		  down2 = 0;
+    end
+    else
+    begin
+        up2 = ~upButton;
+        down2 = ~downButton;
+		  up1 = 0;
+		  down1 = 0;
+    end
+end
 
+ball
+    #(
+        .BIT_WIDTH(BIT_WIDTH), 
+        .MAX_X(MAX_X), 
+        .MAX_Y(MAX_Y), 
+        .BALL_SPEED_X(BALL_SPEED_X), 
+        .BALL_SPEED_Y(BALL_SPEED_Y), 
+        .BALL_RADIUS(BALL_RADIUS), 
+        .EDGE_OFFSET(EDGE_OFFSET)
+    )
+	 ballInstance 
+(
+    .rst(rst),
+    .clk(clk),
+    .pause(pause),
+    .touchingPaddle(touchingPaddle),
 
-    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(`BIT_WIDTH)) paddle1(clk, rst, player1, p1x, p1y_buffer);
-    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(`BIT_WIDTH)) paddle2(clk, rst, player2, p2x, p2y_buffer);
-    ball ball1(clk, rst, p1_paddle_collision, wall_collision, ball_x, ball_y);
-    collisionDetection #(`BIT_WIDTH, `BALL_RADIUS, `PADDLE_RADIUS, `FLOOR_Y) collisionDetector1(p1x, p1y, ball_x, ball_y, p1_paddle_collision, ball_touching_floor);
-    collisionDetection #(`BIT_WIDTH, `BALL_RADIUS, `PADDLE_RADIUS, `FLOOR_Y) collisionDetector2(p2x, p2y, ball_x, ball_y, p2_paddle_collision, ball_touching_floor);
-    manageScore scoreManager (`BALL_X_COORDS_WIDTH, `BALL_X_COORDS_MIN, `BALL_X_COORDS_MAX);
+    .ball_x(ball_x),
+    .ball_y(ball_y),
+    .win(win)
+);
 
-   always_comb
-	begin
-		if (rst)
-		begin
-			p1y = p1y_initial;
-			p2y = p2y_initial;
-		end
-		else
-		begin
-			p1y = p1y_buffer;
-			p2y = p2y_buffer;
-		end
-		p1x = p1x_initial;
-		p2x = p2x_initial;
-	end
-    
+paddle
+    #(
+        .BIT_WIDTH(BIT_WIDTH),
+        .MAX_X(MAX_X),
+        .MAX_Y(MAX_Y),
+        .PADDLE_SPEED(PADDLE_SPEED),
+        .PADDLE_LENGTH(PADDLE_LENGTH),
+        .PADDLE_WIDTH(PADDLE_WIDTH),
+        .EDGE_OFFSET(EDGE_OFFSET)
+    )
+	 player1
+(
+    .rst(rst),
+    .clk(clk),
+    .pause(pause),
+    .side(0),
+    .dy({down1, up1}),
+
+    .paddle_x(player1_x),
+    .paddle_y(player1_y)
+);
+
+paddle
+    #(
+        .BIT_WIDTH(BIT_WIDTH),
+        .MAX_X(MAX_X),
+        .MAX_Y(MAX_Y),
+        .PADDLE_SPEED(PADDLE_SPEED),
+        .PADDLE_LENGTH(PADDLE_LENGTH),
+        .PADDLE_WIDTH(PADDLE_WIDTH),
+        .EDGE_OFFSET(EDGE_OFFSET)
+    )
+	 player2
+(
+    .rst(rst),
+    .clk(clk),
+    .pause(pause),
+    .side(1),
+    .dy({down2, up2}),
+
+    .paddle_x(player2_x),
+    .paddle_y(player2_y)
+);
+
+collisionDetection
+    #(
+        .BIT_WIDTH(BIT_WIDTH),
+        .BALL_RADIUS(BALL_RADIUS),
+        .PADDLE_WIDTH(PADDLE_WIDTH),
+        .PADDLE_LENGTH(PADDLE_LENGTH)
+    )
+	 collisionDetector
+(
+    .rst(rst),
+    .ball_x(ball_x),
+    .ball_y(ball_y),
+    .player1_x(player1_x),
+    .player1_y(player1_y),
+    .player2_x(player2_x),
+    .player2_y(player2_y),
+
+    .touchingPaddle(touchingPaddle)
+);
+
+graphicsDriver
+    #(
+        .BIT_WIDTH(BIT_WIDTH),
+        .BALL_RADIUS(BALL_RADIUS),
+        .PADDLE_WIDTH(PADDLE_WIDTH),
+        .PADDLE_LENGTH(PADDLE_LENGTH)
+    )
+	 screenDisplayer
+(
+    .clk(clk),
+    .sysRst(sysRst),
+    .ball_x(ball_x),
+    .ball_y(ball_y),
+    .player1_x(player1_x),
+    .player1_y(player1_y),
+    .player2_x(player2_x),
+    .player2_y(player2_y),
+
+    .red(redOut),
+    .green(greenOut),
+    .blue(blueOut),
+    .hSync(hSync),
+    .vSync(vSync)
+);
+
 
 endmodule

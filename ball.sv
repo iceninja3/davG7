@@ -1,41 +1,105 @@
-module ball #(parameter x_coords_width = 10,
-              parameter y_coords_width = 10)
+module ball #(parameter BIT_WIDTH, MAX_X, MAX_Y, BALL_SPEED_X, BALL_SPEED_Y, BALL_RADIUS, EDGE_OFFSET)
 (
-  input clk,
-  input reset,
-  input touching_paddle,
-  input touching_wall,
-  input [x_coords_width-1: 0] old_x,
-  input [y_coords_width-1: 0] old_y,
-  output logic [x_coords_width-1: 0] new_x,
-  output logic [y_coords_width-1: 0] new_y
+    input logic rst,
+    input logic clk,
+    input logic pause,
+    input logic[1:0] touchingPaddle,
+
+    output logic[(BIT_WIDTH-1):0] ball_x,
+    output logic[(BIT_WIDTH-1):0] ball_y,
+    output logic[1:0] win
 );
 
-  reg x_speed_sign = 0; // Positive if 1, negative if zero
-  reg y_speed_sign = 0; // Positive if 1, negative if zero
+logic[(BIT_WIDTH-1):0] prevBall_x;
+logic[(BIT_WIDTH-1):0] prevBall_y;
+logic xDirection;
+logic prevXDirection;
+logic yDirection;
+logic prevYDirection;
 
-  always @(posedge clk) begin
-
-    if(reset) begin
-        x_speed_sign <= 0;
-        y_speed_sign <= 0;
+always @(posedge clk)
+begin
+    if (rst)
+    begin
+        ball_x = MAX_X / 2;
+        ball_y = MAX_Y / 2;
+    end
+    else if (pause)
+    begin
+        ball_x = prevBall_x;
+        ball_y = prevBall_y;
+    end
+    else if (win[0] || win[1])
+    begin
+        ball_x = prevBall_x;
+        ball_y = prevBall_y;
+    end
+    else if (xDirection && yDirection) // right and up
+    begin
+        ball_x = prevBall_x + BALL_SPEED_X;
+        ball_y = prevBall_y + BALL_SPEED_Y;
+    end
+    else if (xDirection) // right and down
+    begin
+        ball_x = prevBall_x + BALL_SPEED_X;
+        ball_y = prevBall_y - BALL_SPEED_Y;
+    end
+    else if (yDirection) // left and up
+    begin
+        ball_x = prevBall_x - BALL_SPEED_X;
+        ball_y = prevBall_y + BALL_SPEED_Y;
+    end
+    else // left and down
+    begin
+        ball_x = prevBall_x - BALL_SPEED_X;
+        ball_y = prevBall_y - BALL_SPEED_Y;
     end
 
-    if (touching_paddle)
-      x_speed_sign <= ~x_speed_sign;
+    prevBall_x = ball_x;
+    prevBall_y = ball_y;
+    prevXDirection = xDirection;
+    prevYDirection = yDirection;
+end
 
-    if (touching_wall)
-      y_speed_sign <= ~y_speed_sign;
-
-    if (x_speed_sign)
-      new_x <= old_x + 1; // keep at one so it doesn't phase through paddle and walls during collision detection
+always_comb
+begin
+    if (rst)
+    begin
+        xDirection = 1; // starts off going to the right
+    end
+    else if (touchingPaddle[0] || touchingPaddle[1])
+    begin
+        xDirection = ~prevXDirection;
+    end
     else
-      new_x <= old_x - 1;
+    begin
+        xDirection = prevXDirection;
+    end
 
-    if (y_speed_sign)
-      new_y <= old_y + 1;
+
+    if (rst)
+    begin
+        yDirection = 1; // starts off going up
+    end
+    else if (((prevBall_y + BALL_RADIUS) >= (MAX_Y - EDGE_OFFSET)) || ((prevBall_y - BALL_RADIUS) <= EDGE_OFFSET))
+    begin
+        yDirection = ~prevYDirection;
+    end
     else
-      new_y <= old_y - 1;
+    begin
+        yDirection = prevYDirection;
+    end
 
-  end
+    if (rst)
+    begin
+        win[0] = 0;
+        win[1] = 0;
+    end
+    else
+    begin
+        win[0] = (prevBall_x + BALL_RADIUS) >= (MAX_X - EDGE_OFFSET);
+        win[1] = (prevBall_x - BALL_RADIUS) <= EDGE_OFFSET;
+    end
+end
+
 endmodule
