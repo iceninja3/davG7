@@ -9,8 +9,9 @@ module collisionDetection #(parameter BIT_WIDTH, BALL_RADIUS, PADDLE_RADIUS, FLO
         output logic ballTouchingFloor
     );
 
-    assign touchingPaddle = ((ballX == paddleX) && (ballY <= (paddleY + PADDLE_RADIUS)) && (ballY >= (paddleY - PADDLE_RADIUS)));
-    assign touchingFloor = ((ballY - BALL_RADIUS) == FLOOR_Y);
+	 
+    assign ballTouchingPaddle = ((ballX == paddleX) && (ballY <= (paddleY + PADDLE_RADIUS)) && (ballY >= (paddleY - PADDLE_RADIUS)));
+    assign ballTouchingFloor = ((ballY - BALL_RADIUS) == FLOOR_Y);
 
 endmodule
 

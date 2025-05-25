@@ -1,6 +1,9 @@
 `timescale 1ns/1ns
 
-module collisionDetection_tb;
+module collisionDetection_tb
+(
+	output logic smth
+);
 
     // Parameters from collisionDetection module
     localparam BIT_WIDTH     = 10;

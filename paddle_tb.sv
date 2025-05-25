@@ -1,13 +1,17 @@
 `timescale 1ns/1ns
 `define CLOCK_SPEED 50000000 // in Hz
+`define BIT_WIDTH 10
 
-module paddle_tb;
+module paddle_tb
+(
+	output logic smth
+);
 
     // Parameters from paddle module
     localparam DY              = 1; // Movement step
     localparam TOP_BOUNDARY    = 0;
     localparam BOTTOM_BOUNDARY = 479; // Assuming screen height of 480
-    localparam YBIT_WIDTH      = 9;  // To represent up to 479, 9 bits (2^9 = 512) is not enough, needs 10 bits.
+    localparam YBIT_WIDTH      = `BIT_WIDTH;  // To represent up to 479, 9 bits (2^9 = 512) is not enough, needs 10 bits.
                                      // The module output is [YBIT_WIDTH:0], so if YBIT_WIDTH = 9, it's 10 bits.
                                      // If YBIT_WIDTH is meant to be the number of bits, then it should be 10.
                                      // Let's assume YBIT_WIDTH = 9 means indices 9 down to 0 (10 bits total).
@@ -21,7 +25,7 @@ module paddle_tb;
     logic clk;
     logic rst;
     logic [1:0] btn;
-    logic [9:0] xPos_dummy; // xPos is an input to paddle module but not used for yPos logic 
+    logic [YBIT_WIDTH:0] xPos_dummy; // xPos is an input to paddle module but not used for yPos logic 
 
     // Outputs
     logic [YBIT_WIDTH:0] yPos;
@@ -49,7 +53,7 @@ module paddle_tb;
     end
 
     initial begin
-        $monitor("Time: %0t | rst: %b, btn: %2b, yPos: %d", $time, rst, btn, yPos);
+        $monitor("rst: %b, btn: %2b, yPos: %b", rst, btn, yPos);
 
         // Test case 1: Reset paddle
         rst = 1;

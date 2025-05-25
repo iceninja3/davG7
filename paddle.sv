@@ -1,10 +1,13 @@
 module paddle #(parameter DY, TOP_BOUNDARY, BOTTOM_BOUNDARY, YBIT_WIDTH) 
 (
     //TODO: need an input for initial position of the paddle at start of game (left or right) instead of hardcoding at 240
-input logic clk, rst, [1:0] btn, xPos
+input logic clk, 
+input logic rst, 
+input logic[1:0] btn,
+input logic [YBIT_WIDTH:0] xPos,
 // btn is associated with a specific user and is assigned in top module
 
-output [YBIT_WIDTH:0] yPos,
+output logic [YBIT_WIDTH:0] yPos
 //output [10:0] xPos
 );
 
@@ -19,10 +22,10 @@ always_ff @(posedge clk) begin
         yPos <= yPos;
     end
     else if (btn == 1) begin
-        yPos <= yPos + btn*DY;
+        yPos <= yPos + DY;
     end
     else if (btn == 2) begin
-        yPos <= yPos - btn*DY;
+        yPos <= yPos - DY;
     end
 
 end

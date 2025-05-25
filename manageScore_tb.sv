@@ -1,7 +1,10 @@
 `timescale 1ns/1ns
 `define CLOCK_SPEED 50000000 // in Hz
 
-module manageScore_tb;
+module manageScore_tb
+(
+	output logic smth
+);
 
     // Parameters from manageScore module
     localparam BALL_X_W   = 10;
@@ -49,8 +52,7 @@ module manageScore_tb;
     end
 
     initial begin
-        $monitor("Time: %0t | rst: %b, ball_x: %d | score1: %d, score2: %d, increaseScore: %2b",
-                 $time, reset, ball_x_coords, score1, score2, increaseScore);
+        $monitor("rst: %b, ball_x: %d | score1: %d, score2: %d, increaseScore: %2b", reset, ball_x_coords, score1, score2, increaseScore);
 
         // Test case 1: Reset scores
         reset = 1;

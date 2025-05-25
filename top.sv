@@ -15,43 +15,57 @@
 
 module top
     (
-        input clk,
-        input rst,
-        input [1:0] player1,
-        input [1:0] player2,
+        input logic clk,
+        input logic rst,
+        input logic [1:0] player1,
+        input logic [1:0] player2,
 
-        output [BIT_WIDTH:0] ball_x,
-        output [BIT_WIDTH:0] ball_y
+        output logic [`BIT_WIDTH:0] ball_x,
+        output logic [`BIT_WIDTH:0] ball_y
     );
 
-    reg [BIT_WIDTH:0] ball_x = 0;
-    reg [BIT_WIDTH:0] ball_y = 0;
-    reg [BIT_WIDTH:0] player1_x = 50;
-    reg [BIT_WIDTH:0] player2_x = 590;
-    reg [BIT_WIDTH:0] player1_y = 50;
-    reg [BIT_WIDTH:0] player2_y = 50;
+    //reg [BIT_WIDTH:0] ball_x = 0;
+    //reg [BIT_WIDTH:0] ball_y = 0;
+    localparam p1x_initial= 50;
+	 logic [`BIT_WIDTH:0] p1x;
+    localparam p2x_initial = 590;
+	 logic [`BIT_WIDTH:0] p2x;
+    reg [`BIT_WIDTH:0] p1y_initial = 50;
+	 logic [`BIT_WIDTH:0] p1y;
+	 logic [`BIT_WIDTH:0] p1y_buffer;
+    reg [`BIT_WIDTH:0] p2y_initial = 50;
+	 logic [`BIT_WIDTH:0] p2y;
+	 logic [`BIT_WIDTH:0] p2y_buffer;
 
 
-    reg wall_collision = 0;
-    reg p1_paddle_collision = 0;
-    reg p2_paddle_collision = 0;
-    reg ball_touching_floor = 0;
+    reg wall_collision;
+    reg p1_paddle_collision;
+    reg p2_paddle_collision;
+    reg ball_touching_floor;
 
 
-    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(BIT_WIDTH)) paddle1(clk, rst, player1, player1_x, player1_y);
-    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(BIT_WIDTH)) paddle2(clk, rst, player2, player2_x, player2_y);
-    ball ball1(clk, rst, paddle_collision, wall_collision, ball_x, ball_y);
-    collisionDetection #(BIT_WIDTH, BALL_RADIUS, PADDLE_RADIUS, MID_X, FLOOR_Y) collisionDetector(player1_x, player1_y, ball_x, ball_y, p1_paddle_collision, ball_touching_floor);
-    collisionDetection #(BIT_WIDTH, BALL_RADIUS, PADDLE_RADIUS, MID_X, FLOOR_Y) collisionDetector(player2_x, player2_y, ball_x, ball_y, p2_paddle_collision, ball_touching_floor);
-    manageScore scoreManager (BALL_X_COORDS_WIDTH, BALL_X_COORDS_MIN, BALL_X_COORDS_MAX);
+    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(`BIT_WIDTH)) paddle1(clk, rst, player1, p1x, p1y_buffer);
+    paddle #(.DY(5), .TOP_BOUNDARY(480), .BOTTOM_BOUNDARY(0), .YBIT_WIDTH(`BIT_WIDTH)) paddle2(clk, rst, player2, p2x, p2y_buffer);
+    ball ball1(clk, rst, p1_paddle_collision, wall_collision, ball_x, ball_y);
+    collisionDetection #(`BIT_WIDTH, `BALL_RADIUS, `PADDLE_RADIUS, `FLOOR_Y) collisionDetector1(p1x, p1y, ball_x, ball_y, p1_paddle_collision, ball_touching_floor);
+    collisionDetection #(`BIT_WIDTH, `BALL_RADIUS, `PADDLE_RADIUS, `FLOOR_Y) collisionDetector2(p2x, p2y, ball_x, ball_y, p2_paddle_collision, ball_touching_floor);
+    manageScore scoreManager (`BALL_X_COORDS_WIDTH, `BALL_X_COORDS_MIN, `BALL_X_COORDS_MAX);
 
-    // always @(posedge clk) 
-    // begin
-    //     ball_
-
-        
-    // end
-
+   always_comb
+	begin
+		if (rst)
+		begin
+			p1y = p1y_initial;
+			p2y = p2y_initial;
+		end
+		else
+		begin
+			p1y = p1y_buffer;
+			p2y = p2y_buffer;
+		end
+		p1x = p1x_initial;
+		p2x = p2x_initial;
+	end
     
 
 endmodule
