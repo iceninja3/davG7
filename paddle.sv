@@ -19,44 +19,47 @@ begin
     begin
         if (side == 0)
         begin
-            paddle_x = MAX_X - PADDLE_WIDTH - 1;
-            paddle_y = MAX_Y / 2;
+            paddle_x <= MAX_X - PADDLE_WIDTH - 1;
+            paddle_y <= MAX_Y / 2;
         end
         else
         begin
-            paddle_x = PADDLE_WIDTH + 1;
-            paddle_y = MAX_Y / 2;
+            paddle_x <= PADDLE_WIDTH + 1;
+            paddle_y <= MAX_Y / 2;
         end
     end
     else if (dy[0]) // moving up
     begin
         if ((prevY + PADDLE_LENGTH + PADDLE_SPEED) > MAX_Y)
         begin
-            paddle_y = prevY;
+            paddle_y <= prevY;
         end
         else
         begin
-            paddle_y = prevY + PADDLE_SPEED;
+            paddle_y <= prevY + PADDLE_SPEED;
         end
-        paddle_x = prevX;
+        paddle_x <= prevX;
     end
     else if (dy[1]) // moving down
     begin
         if ((prevY - PADDLE_LENGTH - PADDLE_SPEED) < EDGE_OFFSET)
         begin
-            paddle_y = prevY;
+            paddle_y <= prevY;
         end
         else
         begin
-            paddle_y = prevY - PADDLE_SPEED;
+            paddle_y <= prevY - PADDLE_SPEED;
         end
-        paddle_x = prevX;
+        paddle_x <= prevX;
     end
     else
     begin
-        paddle_x = prevX;
-        paddle_y = prevY;
+        paddle_x <= prevX;
+        paddle_y <= prevY;
     end
+
+    prevX <= paddle_x;
+    prevY <= paddle_y;
 end
 
 endmodule

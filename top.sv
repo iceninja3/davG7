@@ -11,15 +11,28 @@ module top
     output logic[3:0] greenOut,
     output logic[3:0] blueOut,
     output logic hSync,
-    output logic vSync
+    output logic vSync,
+    
+    // for testing purposes only
+    output logic[9:0] ball_x_out,
+    output logic[9:0] ball_y_out,
+    output logic[9:0] player1_x_out,
+    output logic[9:0] player1_y_out,
+    output logic[9:0] player2_x_out,
+    output logic[9:0] player2_y_out,
+    output logic[1:0] touchingPaddle_out,
+    output logic[1:0] win_out,
+    output logic vgaClk_out,
+    output logic[9:0] hc_out,
+    output logic[9:0] vc_out
 );
 
 localparam BIT_WIDTH = 10;
 localparam MAX_X = 31;
 localparam MAX_Y = 23;
-localparam BALL_SPEED_X = 0;
+localparam BALL_SPEED_X = 1;
 localparam BALL_SPEED_Y = 0;
-localparam PADDLE_SPEED = 0;
+localparam PADDLE_SPEED = 1;
 localparam BALL_RADIUS = 1;
 localparam PADDLE_WIDTH = 1;
 localparam PADDLE_LENGTH = 3;
@@ -38,6 +51,7 @@ logic[(BIT_WIDTH-1):0] player1_y;
 logic[(BIT_WIDTH-1):0] player2_x;
 logic[(BIT_WIDTH-1):0] player2_y;
 logic[1:0] win;
+logic vgaClk;
 
 assign sysRst = rst;
 always_comb
@@ -162,12 +176,32 @@ graphicsDriver
     .player2_x(player2_x),
     .player2_y(player2_y),
 
-    .red(redOut),
-    .green(greenOut),
-    .blue(blueOut),
+    //.red(redOut),
+    //.green(greenOut),
+    //.blue(blueOut),
     .hSync(hSync),
-    .vSync(vSync)
+    .vSync(vSync),
+
+    // for testing
+    .vgaClk_out(vgaClk),
+    .hc_out(hc_out),
+    .vc_out(vc_out)
 );
+
+// for testing
+assign ball_x_out = ball_x;
+assign ball_y_out = ball_y;
+assign player1_x_out = player1_x;
+assign player1_y_out = player1_y;
+assign player2_x_out = player2_x;
+assign player2_y_out = player2_y;
+assign touchingPaddle_out = touchingPaddle;
+assign win_out = win;
+assign vgaClk_out = vgaClk;
+
+assign redOut = 4'b1110;
+assign greenOut = 4'b1110;
+assign blueOut = 4'b1100;
 
 
 endmodule

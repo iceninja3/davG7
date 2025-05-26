@@ -13,7 +13,12 @@ module graphicsDriver #(BIT_WIDTH, BALL_RADIUS, PADDLE_WIDTH, PADDLE_LENGTH)
     output logic[3:0] green,
     output logic[3:0] blue,
     output logic hSync,
-    output logic vSync
+    output logic vSync,
+
+    // for testing
+    output logic vgaClk_out,
+    output logic[9:0] hc_out,
+    output logic[9:0] vc_out
 );
 
 localparam HPIXELS = 32;
@@ -42,15 +47,29 @@ logic atPaddle2X;
 logic atPaddle2Y;
 
 
-vgaclk pll
+/*vgaclk pll
 (
     .areset(sysRst),
     .inclk0(clk),
     .c0(vgaClk),
     .locked(locked)
 );
+pongDispClk pll
+(
+	.areset(sysRst),
+	.inclk0(clk),
+	.c0(vgaClk)
+);*/
 
-vga vgaInstance
+pongClockDivider clockDivider
+(
+    .clk(clk),
+    .rst(sysRst),
+    
+    .outClk(vgaClk)
+);
+
+pongVga vgaInstance
 (
     .vgaclk(vgaClk), 
     .rst(sysRst), 
@@ -67,7 +86,7 @@ vga vgaInstance
     .blue(color_12bit[3:0])
 );
   
-double_buffer doubleBuffer
+pong_double_buffer doubleBuffer
 (
     .clk(vgaClk),
     .rst(sysRst),
@@ -95,18 +114,24 @@ assign atPaddle2 = atPaddle2X && atPaddle2Y;
 
 always_comb
 begin
-    if (atBall || atPaddle1 || atPaddle2)
+    /*if (atBall || atPaddle1 || atPaddle2)
     begin
         color_8bit = WHT;
     end
     else
     begin
         color_8bit = BLK;
-    end
+    end*/
+    color_8bit = WHT;
 end
 
 assign red = colorOut[11:8];
 assign green = colorOut[7:4];
 assign blue = colorOut[3:0];
+
+// for testing
+assign vgaClk_out = vgaClk;
+assign hc_out = hc;
+assign vc_out = vc;
 
 endmodule
